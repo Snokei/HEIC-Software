@@ -7,6 +7,9 @@ import io
 import os
 import sys
 import datetime
+import threading
+import queue
+from collections import OrderedDict
 
 def get_file_size_str(file_path):
     try:
@@ -310,6 +313,13 @@ class HEICViewerApp:
         self.is_fullscreen = False
         self.slideshow_active = False
         self.sidebar_visible = False
+        
+        # Background preloading
+        self.image_cache = OrderedDict()
+        self.max_cache_size = 200
+        self.preload_queue = queue.Queue()
+        self.preload_thread = threading.Thread(target=self._preload_worker, daemon=True)
+        self.preload_thread.start()
         
         # Overlay navigation chevrons (Borderless style)
         self.btn_prev_overlay = RoundedButton(
@@ -916,6 +926,7 @@ class HEICViewerApp:
             self.folder_files = [file_path]
             self.current_index = 0
             
+        self.enqueue_preloads(clear_cache=True)
         self.load_image_by_path(file_path)
 
     def start_pan(self, event):
@@ -1092,18 +1103,28 @@ class HEICViewerApp:
 
     def load_image_by_path(self, file_path):
         try:
-            heic_image = Image.open(file_path)
-            
-            icc_profile = heic_image.info.get("icc_profile")
-            if icc_profile:
-                try:
-                    input_profile = ImageCms.ImageCmsProfile(io.BytesIO(icc_profile))
-                    srgb_profile = ImageCms.createProfile("sRGB")
-                    heic_image = ImageCms.profileToProfile(heic_image, input_profile, srgb_profile)
-                except Exception as cms_err:
-                    print(f"Color profile conversion warning: {cms_err}")
-            
-            self.original_image = heic_image
+            if file_path in self.image_cache:
+                self.original_image = self.image_cache[file_path]
+                self.image_cache.move_to_end(file_path)
+            else:
+                heic_image = Image.open(file_path)
+                
+                icc_profile = heic_image.info.get("icc_profile")
+                if icc_profile:
+                    try:
+                        input_profile = ImageCms.ImageCmsProfile(io.BytesIO(icc_profile))
+                        srgb_profile = ImageCms.createProfile("sRGB")
+                        heic_image = ImageCms.profileToProfile(heic_image, input_profile, srgb_profile)
+                    except Exception as cms_err:
+                        print(f"Color profile conversion warning: {cms_err}")
+                
+                heic_image.load()
+                self.original_image = heic_image
+                
+                if len(self.image_cache) >= self.max_cache_size:
+                    self.image_cache.popitem(last=False)
+                self.image_cache[file_path] = heic_image
+                
             self.view_mode = "fit"
             self.zoom_scale = 1.0
             
@@ -1113,7 +1134,7 @@ class HEICViewerApp:
             self.lbl_filename.config(text=os.path.basename(file_path))
             
             size_str = get_file_size_str(file_path)
-            w, h = heic_image.size
+            w, h = self.original_image.size
             self.lbl_metadata.config(text=f"{w} × {h} • {size_str}")
             
             if self.sidebar_visible:
@@ -1134,6 +1155,7 @@ class HEICViewerApp:
         if len(file_paths) > 1:
             self.folder_files = list(file_paths)
             self.current_index = 0
+            self.enqueue_preloads(clear_cache=True)
             self.load_image_by_path(self.folder_files[0])
         else:
             file_path = file_paths[0]
@@ -1149,6 +1171,7 @@ class HEICViewerApp:
                 self.folder_files = [file_path]
                 self.current_index = 0
                 
+            self.enqueue_preloads(clear_cache=True)
             self.load_image_by_path(file_path)
 
     def open_folder(self):
@@ -1167,18 +1190,21 @@ class HEICViewerApp:
             return
             
         self.current_index = 0
+        self.enqueue_preloads(clear_cache=True)
         self.load_image_by_path(self.folder_files[0])
 
     def show_next_image(self, event=None):
         if not self.folder_files or len(self.folder_files) <= 1:
             return
         self.current_index = (self.current_index + 1) % len(self.folder_files)
+        self.enqueue_preloads(clear_cache=False)
         self.load_image_by_path(self.folder_files[self.current_index])
 
     def show_prev_image(self, event=None):
         if not self.folder_files or len(self.folder_files) <= 1:
             return
         self.current_index = (self.current_index - 1) % len(self.folder_files)
+        self.enqueue_preloads(clear_cache=False)
         self.load_image_by_path(self.folder_files[self.current_index])
 
     def toggle_fullscreen(self, event=None):
@@ -1198,6 +1224,67 @@ class HEICViewerApp:
     def exit_fullscreen(self, event=None):
         if self.is_fullscreen:
             self.toggle_fullscreen()
+
+    def _preload_worker(self):
+        while True:
+            file_path = self.preload_queue.get()
+            if file_path is None:
+                break
+            if file_path not in self.image_cache:
+                try:
+                    heic_image = Image.open(file_path)
+                    
+                    icc_profile = heic_image.info.get("icc_profile")
+                    if icc_profile:
+                        try:
+                            input_profile = ImageCms.ImageCmsProfile(io.BytesIO(icc_profile))
+                            srgb_profile = ImageCms.createProfile("sRGB")
+                            heic_image = ImageCms.profileToProfile(heic_image, input_profile, srgb_profile)
+                        except Exception:
+                            pass
+                            
+                    heic_image.load() # Decode image
+                    
+                    # Store in cache and maintain size limit
+                    if len(self.image_cache) >= self.max_cache_size:
+                        self.image_cache.popitem(last=False) # Remove oldest
+                        
+                    self.image_cache[file_path] = heic_image
+                except Exception as e:
+                    print(f"Failed to preload {file_path}: {e}")
+            self.preload_queue.task_done()
+
+    def enqueue_preloads(self, clear_cache=False):
+        # Clear existing queue
+        with self.preload_queue.mutex:
+            self.preload_queue.queue.clear()
+            
+        if clear_cache:
+            self.image_cache.clear()
+            
+        if not self.folder_files:
+            return
+            
+        files_to_preload = []
+        if self.current_index >= 0 and self.current_index < len(self.folder_files):
+            if self.folder_files[self.current_index] not in self.image_cache:
+                files_to_preload.append(self.folder_files[self.current_index])
+            
+        # Add surrounding files prioritizing nearest neighbors
+        left = self.current_index - 1
+        right = self.current_index + 1
+        while left >= 0 or right < len(self.folder_files):
+            if right < len(self.folder_files):
+                if self.folder_files[right] not in self.image_cache:
+                    files_to_preload.append(self.folder_files[right])
+                right += 1
+            if left >= 0:
+                if self.folder_files[left] not in self.image_cache:
+                    files_to_preload.append(self.folder_files[left])
+                left -= 1
+                
+        for file_path in files_to_preload[:self.max_cache_size]:
+            self.preload_queue.put(file_path)
 
 if __name__ == "__main__":
     root = tk.Tk()
