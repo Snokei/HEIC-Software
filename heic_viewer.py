@@ -1510,10 +1510,19 @@ class HEICViewerApp:
             
         try:
             img = self.original_image.copy()
+            exif_data = self.original_image.info.get("exif")
+            icc_profile = self.original_image.info.get("icc_profile")
+            
             if img.mode in ("RGBA", "P"):
                 img = img.convert("RGB")
             
-            img.save(save_path, "JPEG", quality=100, subsampling=0)
+            save_kwargs = {"quality": 100, "subsampling": 0}
+            if exif_data:
+                save_kwargs["exif"] = exif_data
+            if icc_profile:
+                save_kwargs["icc_profile"] = icc_profile
+                
+            img.save(save_path, "JPEG", **save_kwargs)
             messagebox.showinfo("Success", f"Image exported successfully to:\n{save_path}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export image: {e}")
@@ -1557,13 +1566,22 @@ class HEICViewerApp:
                     self.root.after(0, lambda f=file_path: lbl_status.config(text=f"Exporting: {os.path.basename(f)}"))
                     
                     img = Image.open(file_path)
+                    exif_data = img.info.get("exif")
+                    icc_profile = img.info.get("icc_profile")
+                    
                     if img.mode in ("RGBA", "P"):
                         img = img.convert("RGB")
                         
                     base_name = os.path.splitext(os.path.basename(file_path))[0]
                     save_path = os.path.join(target_dir, base_name + ".jpg")
                     
-                    img.save(save_path, "JPEG", quality=100, subsampling=0)
+                    save_kwargs = {"quality": 100, "subsampling": 0}
+                    if exif_data:
+                        save_kwargs["exif"] = exif_data
+                    if icc_profile:
+                        save_kwargs["icc_profile"] = icc_profile
+                        
+                    img.save(save_path, "JPEG", **save_kwargs)
                     success_count += 1
                 except Exception as e:
                     print(f"Error converting {file_path}: {e}")
