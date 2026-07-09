@@ -1,0 +1,4 @@
+"""HEIC Photo Viewer — viewer package."""
+
+__version__ = "2.0.0"
+__author__ = "HEIC Software"
