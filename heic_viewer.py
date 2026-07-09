@@ -258,6 +258,22 @@ class HEICViewerApp:
         self.btn_open_folder.pack(side=tk.LEFT, padx=4)
         ToolTip(self.btn_open_folder, "Open folder containing HEIC photos")
         
+        # 3. Export Button
+        self.btn_export = RoundedButton(
+            self.left_actions,
+            text="Export JPG",
+            width=86,
+            height=32,
+            radius=6,
+            normal_color=self.clr_button_bg,
+            hover_color=self.clr_button_hover,
+            fg="white",
+            command=self.export_to_jpg,
+            font=button_font
+        )
+        self.btn_export.pack(side=tk.LEFT, padx=4)
+        ToolTip(self.btn_export, "Export current or all HEIC files to JPG")
+        
         # Centered Filename Label
         self.lbl_filename = tk.Label(
             self.top_frame, 
@@ -313,6 +329,40 @@ class HEICViewerApp:
         self.is_fullscreen = False
         self.slideshow_active = False
         self.sidebar_visible = False
+        
+        # Filmstrip setup
+        self.filmstrip_frame = tk.Frame(self.display_frame, bg=self.clr_panel, height=125)
+        self.filmstrip_frame.grid_propagate(False)
+        self.filmstrip_canvas = tk.Canvas(self.filmstrip_frame, bg=self.clr_panel, highlightthickness=0, height=105)
+        
+        # Custom Scrollbar Base
+        self.filmstrip_scroll_bg = tk.Frame(self.filmstrip_frame, bg="#1e1e24", height=6)
+        self.filmstrip_scroll_bg.pack(side=tk.BOTTOM, fill=tk.X)
+        self.filmstrip_scroll_bg.pack_propagate(False)
+        self.filmstrip_scroll_thumb = tk.Frame(self.filmstrip_scroll_bg, bg="#666677", height=6)
+        
+        self.filmstrip_canvas.config(xscrollcommand=self._update_custom_scrollbar)
+        self.filmstrip_canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        
+        # Scroll Bindings
+        self.filmstrip_canvas.bind("<MouseWheel>", self._on_filmstrip_mousewheel)
+        self.filmstrip_canvas.bind("<Shift-MouseWheel>", self._on_filmstrip_mousewheel)
+        self.filmstrip_scroll_bg.bind("<Button-1>", self._on_thumb_drag)
+        self.filmstrip_scroll_bg.bind("<B1-Motion>", self._on_thumb_drag)
+        self.filmstrip_scroll_thumb.bind("<Button-1>", self._on_thumb_drag)
+        self.filmstrip_scroll_thumb.bind("<B1-Motion>", self._on_thumb_drag)
+        
+        # Resize binding for centering
+        self.filmstrip_canvas.bind("<Configure>", self._on_filmstrip_resize)
+        
+        self.filmstrip_offset = 10
+        self.filmstrip_visible = False
+        self.thumbnails_data = {}
+        self.thumb_queue = queue.Queue()
+        self.thumb_result_queue = queue.Queue()
+        self.thumbnail_thread = threading.Thread(target=self._thumbnail_worker, daemon=True)
+        self.thumbnail_thread.start()
+        self.root.after(100, self.process_thumbnails)
         
         # Background preloading
         self.image_cache = OrderedDict()
@@ -402,6 +452,14 @@ class HEICViewerApp:
         )
         self.btn_info.pack(side=tk.LEFT, padx=2)
         ToolTip(self.btn_info, "Properties (I)")
+        
+        # Filmstrip Button
+        self.btn_filmstrip = RoundedButton(
+            self.left_footer, text="🎞", width=28, height=28, radius=5,
+            command=self.toggle_filmstrip, **footer_btn_style
+        )
+        self.btn_filmstrip.pack(side=tk.LEFT, padx=2)
+        ToolTip(self.btn_filmstrip, "Toggle Filmstrip (F)")
         
         # Separation dot
         self.lbl_dot = tk.Label(self.left_footer, text="•", bg=self.clr_panel, fg="#888888", font=("Arial", 11))
@@ -515,6 +573,8 @@ class HEICViewerApp:
         self.root.bind("<R>", lambda e: self.rotate_image())
         self.root.bind("<i>", lambda e: self.toggle_sidebar())
         self.root.bind("<I>", lambda e: self.toggle_sidebar())
+        self.root.bind("<f>", lambda e: self.toggle_filmstrip())
+        self.root.bind("<F>", lambda e: self.toggle_filmstrip())
         
         # Apply dark mode title bar
         self.set_dark_title_bar()
@@ -927,6 +987,7 @@ class HEICViewerApp:
             self.current_index = 0
             
         self.enqueue_preloads(clear_cache=True)
+        self.update_filmstrip()
         self.load_image_by_path(file_path)
 
     def start_pan(self, event):
@@ -1140,6 +1201,8 @@ class HEICViewerApp:
             if self.sidebar_visible:
                 self.populate_sidebar()
                 
+            self.highlight_current_thumbnail()
+            
         except Exception as e:
             messagebox.showerror("Error", f"Could not open or render HEIC file:\n{str(e)}")
 
@@ -1156,6 +1219,7 @@ class HEICViewerApp:
             self.folder_files = list(file_paths)
             self.current_index = 0
             self.enqueue_preloads(clear_cache=True)
+            self.update_filmstrip()
             self.load_image_by_path(self.folder_files[0])
         else:
             file_path = file_paths[0]
@@ -1172,6 +1236,7 @@ class HEICViewerApp:
                 self.current_index = 0
                 
             self.enqueue_preloads(clear_cache=True)
+            self.update_filmstrip()
             self.load_image_by_path(file_path)
 
     def open_folder(self):
@@ -1191,21 +1256,18 @@ class HEICViewerApp:
             
         self.current_index = 0
         self.enqueue_preloads(clear_cache=True)
+        self.update_filmstrip()
         self.load_image_by_path(self.folder_files[0])
 
     def show_next_image(self, event=None):
         if not self.folder_files or len(self.folder_files) <= 1:
             return
-        self.current_index = (self.current_index + 1) % len(self.folder_files)
-        self.enqueue_preloads(clear_cache=False)
-        self.load_image_by_path(self.folder_files[self.current_index])
+        self.load_image_by_index((self.current_index + 1) % len(self.folder_files))
 
     def show_prev_image(self, event=None):
         if not self.folder_files or len(self.folder_files) <= 1:
             return
-        self.current_index = (self.current_index - 1) % len(self.folder_files)
-        self.enqueue_preloads(clear_cache=False)
-        self.load_image_by_path(self.folder_files[self.current_index])
+        self.load_image_by_index((self.current_index - 1) % len(self.folder_files))
 
     def toggle_fullscreen(self, event=None):
         self.is_fullscreen = not self.is_fullscreen
@@ -1224,6 +1286,295 @@ class HEICViewerApp:
     def exit_fullscreen(self, event=None):
         if self.is_fullscreen:
             self.toggle_fullscreen()
+
+    def load_image_by_index(self, idx):
+        if not self.folder_files or idx < 0 or idx >= len(self.folder_files):
+            return
+        self.current_index = idx
+        self.enqueue_preloads(clear_cache=False)
+        self.load_image_by_path(self.folder_files[self.current_index])
+
+    def toggle_filmstrip(self, event=None):
+        self.filmstrip_visible = not self.filmstrip_visible
+        if self.filmstrip_visible:
+            self.btn_filmstrip.config(fg=self.clr_accent)
+            self.filmstrip_frame.grid(row=1, column=0, sticky="ew")
+            self.update_filmstrip()
+        else:
+            self.btn_filmstrip.config(fg="white")
+            self.filmstrip_frame.grid_forget()
+
+    def _update_custom_scrollbar(self, first, last):
+        first = float(first)
+        last = float(last)
+        if first <= 0.0 and last >= 1.0:
+            self.filmstrip_scroll_thumb.place_forget()
+        else:
+            self.filmstrip_scroll_thumb.place(relx=first, rely=0.0, relwidth=last-first, relheight=1.0)
+            
+    def _on_thumb_drag(self, event):
+        bg_width = self.filmstrip_scroll_bg.winfo_width()
+        if bg_width == 0: return
+        fraction = event.x_root - self.filmstrip_scroll_bg.winfo_rootx()
+        fraction /= bg_width
+        self.filmstrip_canvas.xview_moveto(fraction)
+        
+    def _on_filmstrip_mousewheel(self, event):
+        if not self.filmstrip_visible: return
+        self.filmstrip_canvas.xview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    def _on_filmstrip_resize(self, event):
+        if not self.filmstrip_visible or not self.folder_files:
+            return
+            
+        canvas_width = event.width
+        thumb_size = 80
+        padding = 10
+        total_content_width = len(self.folder_files) * (thumb_size + 4 + padding) - padding
+        
+        if total_content_width < canvas_width:
+            target_offset = (canvas_width - total_content_width) // 2
+        else:
+            target_offset = 10
+            
+        if hasattr(self, 'filmstrip_offset') and self.filmstrip_offset != target_offset:
+            dx = target_offset - self.filmstrip_offset
+            self.filmstrip_canvas.move("all", dx, 0)
+            self.filmstrip_offset = target_offset
+            
+            bbox = self.filmstrip_canvas.bbox("all")
+            if bbox:
+                self.filmstrip_canvas.config(scrollregion=(0, 0, bbox[2] + (10 if target_offset == 10 else target_offset), 125))
+
+    def update_filmstrip(self):
+        if not self.filmstrip_visible or not self.folder_files:
+            return
+            
+        self.filmstrip_canvas.delete("all")
+        self.thumbnails_data.clear()
+        
+        thumb_size = 80
+        padding = 10
+        total_content_width = len(self.folder_files) * (thumb_size + 4 + padding) - padding
+        
+        self.root.update_idletasks()
+        canvas_width = self.filmstrip_canvas.winfo_width()
+        
+        if canvas_width > 1 and total_content_width < canvas_width:
+            x_offset = (canvas_width - total_content_width) // 2
+        else:
+            x_offset = 10
+            
+        self.filmstrip_offset = x_offset
+        
+        for i, file_path in enumerate(self.folder_files):
+            self.filmstrip_canvas.create_rectangle(
+                x_offset, 10, x_offset + thumb_size + 4, 10 + thumb_size + 4,
+                fill="#2a2a32", outline="" if i != self.current_index else self.clr_accent, width=2,
+                tags=f"thumb_rect_{i}"
+            )
+            
+            self.filmstrip_canvas.create_rectangle(
+                x_offset, 10, x_offset + thumb_size + 4, 10 + thumb_size + 4,
+                fill="", outline="", tags=f"hitbox_{i}"
+            )
+            
+            self.filmstrip_canvas.tag_bind(f"thumb_rect_{i}", "<Button-1>", lambda e, idx=i: self.load_image_by_index(idx))
+            self.filmstrip_canvas.tag_bind(f"hitbox_{i}", "<Button-1>", lambda e, idx=i: self.load_image_by_index(idx))
+            
+            x_offset += thumb_size + 4 + padding
+            
+        self.filmstrip_canvas.config(scrollregion=(0, 0, x_offset, 125))
+        
+        self.start_thumbnail_worker()
+        self.highlight_current_thumbnail()
+
+    def highlight_current_thumbnail(self):
+        if not self.filmstrip_visible or not self.folder_files:
+            return
+            
+        thumb_size = 80
+        padding = 10
+        
+        for i in range(len(self.folder_files)):
+            self.filmstrip_canvas.itemconfig(f"thumb_rect_{i}", outline="")
+            
+        self.filmstrip_canvas.itemconfig(f"thumb_rect_{self.current_index}", outline=self.clr_accent)
+        
+        x_pos = getattr(self, 'filmstrip_offset', 10) + self.current_index * (thumb_size + 4 + padding)
+        canvas_width = self.filmstrip_canvas.winfo_width()
+        if canvas_width <= 1: canvas_width = 800
+        
+        scroll_region = self.filmstrip_canvas.bbox("all")
+        if not scroll_region: return
+        total_width = scroll_region[2]
+        
+        scroll_x = (x_pos - (canvas_width // 2) + (thumb_size // 2)) / max(1, total_width)
+        self.filmstrip_canvas.xview_moveto(max(0.0, min(1.0, scroll_x)))
+
+    def start_thumbnail_worker(self):
+        with self.thumb_queue.mutex:
+            self.thumb_queue.queue.clear()
+            
+        for i, file_path in enumerate(self.folder_files):
+            if i not in self.thumbnails_data:
+                self.thumb_queue.put((i, file_path))
+
+    def _thumbnail_worker(self):
+        thumb_size = (80, 80)
+        while True:
+            item = self.thumb_queue.get()
+            if item is None:
+                break
+            idx, file_path = item
+            
+            try:
+                if file_path in self.image_cache:
+                    img = self.image_cache[file_path].copy()
+                else:
+                    img = Image.open(file_path)
+                    img.load()
+                
+                # Convert to RGB to ensure .thumbnail() works perfectly in-place without HEIF issues
+                if img.mode != "RGB":
+                    img = img.convert("RGB")
+                    
+                img.thumbnail(thumb_size, Image.Resampling.LANCZOS)
+                self.thumb_result_queue.put((idx, img))
+            except Exception as e:
+                print(f"Thumbnail error for {file_path}: {e}")
+                
+            self.thumb_queue.task_done()
+
+    def process_thumbnails(self):
+        try:
+            for _ in range(5):
+                idx, img = self.thumb_result_queue.get_nowait()
+                
+                if not self.filmstrip_visible or not self.folder_files or idx >= len(self.folder_files):
+                    continue
+                    
+                tk_img = ImageTk.PhotoImage(img)
+                self.thumbnails_data[idx] = tk_img
+                
+                thumb_size = 80
+                padding = 10
+                
+                # Use current offset to place the images accurately
+                current_offset = getattr(self, 'filmstrip_offset', 10)
+                x_offset = current_offset + idx * (thumb_size + 4 + padding)
+                
+                img_id = self.filmstrip_canvas.create_image(
+                    x_offset + 2 + thumb_size//2, 10 + 2 + thumb_size//2,
+                    image=tk_img, anchor=tk.CENTER
+                )
+                
+                # Raise the transparent hitbox above the image so it catches clicks across the whole cell
+                self.filmstrip_canvas.tag_raise(f"hitbox_{idx}")
+                self.filmstrip_canvas.tag_bind(img_id, "<Button-1>", lambda e, i=idx: self.load_image_by_index(i))
+                
+        except queue.Empty:
+            pass
+            
+        self.root.after(100, self.process_thumbnails)
+
+    def export_to_jpg(self):
+        if not self.folder_files:
+            messagebox.showinfo("Export", "No files loaded to export.")
+            return
+            
+        choice = messagebox.askyesnocancel("Export to JPG", "Do you want to export all loaded files in this folder to JPG?\n\nYes: Export All\nNo: Export Current Image Only\nCancel: Abort")
+        if choice is None:
+            return
+            
+        if choice: # True = Export All
+            self.export_batch()
+        else: # False = Export Current
+            self.export_single()
+
+    def export_single(self):
+        if not self.original_image or not self.folder_files:
+            return
+            
+        current_file = self.folder_files[self.current_index]
+        default_name = os.path.splitext(os.path.basename(current_file))[0] + ".jpg"
+        save_path = filedialog.asksaveasfilename(
+            title="Export Image as JPG",
+            initialfile=default_name,
+            defaultextension=".jpg",
+            filetypes=[("JPEG files", "*.jpg")]
+        )
+        
+        if not save_path:
+            return
+            
+        try:
+            img = self.original_image.copy()
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            
+            img.save(save_path, "JPEG", quality=100, subsampling=0)
+            messagebox.showinfo("Success", f"Image exported successfully to:\n{save_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export image: {e}")
+
+    def export_batch(self):
+        target_dir = filedialog.askdirectory(title="Select Destination Folder for Export")
+        if not target_dir:
+            return
+            
+        progress_window = tk.Toplevel(self.root)
+        progress_window.title("Exporting...")
+        progress_window.geometry("400x120")
+        progress_window.transient(self.root)
+        progress_window.grab_set()
+        
+        progress_window.update_idletasks()
+        x = self.root.winfo_rootx() + (self.root.winfo_width() // 2) - 200
+        y = self.root.winfo_rooty() + (self.root.winfo_height() // 2) - 60
+        progress_window.geometry(f"+{x}+{y}")
+        progress_window.configure(bg=self.clr_panel)
+        
+        lbl_status = tk.Label(progress_window, text="Exporting files...", bg=self.clr_panel, fg="white", font=("Segoe UI Variable Display", 10))
+        lbl_status.pack(pady=(15, 5))
+        
+        from tkinter import ttk
+        style = ttk.Style()
+        style.theme_use('default')
+        style.configure("TProgressbar", thickness=15, background=self.clr_accent)
+        
+        progress_var = tk.DoubleVar()
+        progress_bar = ttk.Progressbar(progress_window, variable=progress_var, maximum=len(self.folder_files), style="TProgressbar")
+        progress_bar.pack(fill=tk.X, padx=20, pady=5)
+        
+        lbl_count = tk.Label(progress_window, text=f"0 / {len(self.folder_files)}", bg=self.clr_panel, fg="#888888", font=("Segoe UI Variable Display", 9))
+        lbl_count.pack(pady=5)
+        
+        def conversion_thread():
+            success_count = 0
+            for i, file_path in enumerate(self.folder_files):
+                try:
+                    self.root.after(0, lambda f=file_path: lbl_status.config(text=f"Exporting: {os.path.basename(f)}"))
+                    
+                    img = Image.open(file_path)
+                    if img.mode in ("RGBA", "P"):
+                        img = img.convert("RGB")
+                        
+                    base_name = os.path.splitext(os.path.basename(file_path))[0]
+                    save_path = os.path.join(target_dir, base_name + ".jpg")
+                    
+                    img.save(save_path, "JPEG", quality=100, subsampling=0)
+                    success_count += 1
+                except Exception as e:
+                    print(f"Error converting {file_path}: {e}")
+                    
+                self.root.after(0, lambda idx=i+1: progress_var.set(idx))
+                self.root.after(0, lambda idx=i+1: lbl_count.config(text=f"{idx} / {len(self.folder_files)}"))
+                
+            self.root.after(0, progress_window.destroy)
+            self.root.after(0, lambda: messagebox.showinfo("Export Complete", f"Successfully exported {success_count} of {len(self.folder_files)} images to:\n{target_dir}"))
+            
+        threading.Thread(target=conversion_thread, daemon=True).start()
 
     def _preload_worker(self):
         while True:
