@@ -25,8 +25,8 @@ class FilmstripPanel(ctk.CTkFrame):
     THUMB_SIZE  = 80
     CELL_PAD    = 4   # padding inside each cell border
     ITEM_GAP    = 10  # gap between cells
-    ROW_HEIGHT  = 105
-    PANEL_HEIGHT = 125
+    ROW_HEIGHT  = 101
+    PANEL_HEIGHT = 80
 
     def __init__(
         self,
