@@ -58,7 +58,7 @@ class ExportProgressDialog:
 
         self._lbl_status = tk.Label(
             self._win, text="Preparing…", bg=bg, fg="white",
-            font=("Segoe UI Variable Display", 10),
+            font=("Segoe UI Variable Display", 12),
         )
         self._lbl_status.pack(pady=(16, 4), padx=20, anchor="w")
 
@@ -79,7 +79,7 @@ class ExportProgressDialog:
 
         self._lbl_count = tk.Label(
             self._win, text=f"0 / {len(files)}", bg=bg, fg="#888888",
-            font=("Segoe UI Variable Display", 9),
+            font=("Segoe UI Variable Display", 12),
         )
         self._lbl_count.pack(pady=4)
 
@@ -163,12 +163,12 @@ class SettingsDialog:
         fg  = "white"
         dim = "#888888"
         hl  = colors.get("accent", "#f08060")
-        fnt = ("Segoe UI Variable Display", 10)
-        fnt_sm = ("Segoe UI Variable Display", 9)
+        fnt = ("Segoe UI Variable Display", 12)
+        fnt_sm = ("Segoe UI Variable Display", 12)
 
         def _section(text):
             tk.Label(content, text=text, bg=bg, fg=fg,
-                     font=("Segoe UI Variable Display", 11, "bold")).pack(
+                     font=("Segoe UI Variable Display", 12, "bold")).pack(
                 anchor="w", pady=(14, 4))
             tk.Frame(content, height=1, bg="#2a2a32").pack(fill=tk.X)
 

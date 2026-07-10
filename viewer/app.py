@@ -240,7 +240,7 @@ class HEICViewerApp:
         self._context_menu = tk.Menu(root, tearoff=0, bg=c["panel"], fg="white",
                                      activebackground=c["button_hover"],
                                      activeforeground="white", bd=0,
-                                     font=("Segoe UI Variable Display", 9))
+                                     font=("Segoe UI Variable Display", 12))
         self._context_menu.add_command(label="Copy Image",          command=self.copy_image)
         self._context_menu.add_command(label="Copy File Path",      command=lambda: self._copy_path(self._current_path))
         self._context_menu.add_separator()

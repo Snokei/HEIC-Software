@@ -54,7 +54,7 @@ class StatusBar(tk.Frame):
             normal_color=bg,
             hover_color=colors["button_hover"],
             fg="white",
-            font=("Segoe UI Variable Display", 11),
+            font=("Segoe UI Variable Display", 14),
         )
 
         self.btn_info = RoundedButton(left, text="ⓘ", width=28, command=on_toggle_info, **icon_btn)
@@ -79,7 +79,7 @@ class StatusBar(tk.Frame):
         # Metadata label
         self.lbl_metadata = tk.Label(
             left, text="", bg=bg, fg="#aaaaaa",
-            font=("Segoe UI Variable Display", 9),
+            font=("Segoe UI Variable Display", 12),
         )
         self.lbl_metadata.pack(side=tk.LEFT, padx=2)
 
@@ -91,7 +91,7 @@ class StatusBar(tk.Frame):
 
         self.lbl_counter = tk.Label(
             center, text="", bg=bg, fg="#888888",
-            font=("Segoe UI Variable Display", 9),
+            font=("Segoe UI Variable Display", 12),
         )
         self.lbl_counter.pack(expand=True)
 
@@ -107,7 +107,7 @@ class StatusBar(tk.Frame):
             normal_color=bg,
             hover_color=colors["button_hover"],
             fg="white",
-            font=("Segoe UI Variable Display", 11),
+            font=("Segoe UI Variable Display", 14),
         )
 
         self.btn_delete = RoundedButton(right, text="🗑", width=28, command=on_delete, **right_icon)
@@ -134,7 +134,7 @@ class StatusBar(tk.Frame):
             right, text="−", width=26, command=on_zoom_out,
             height=26, radius=5,
             normal_color=bg, hover_color=colors["button_hover"],
-            fg="white", font=("Segoe UI Variable Display", 13),
+            fg="white", font=("Segoe UI Variable Display", 16),
         )
         self.btn_zoom_out.pack(side=tk.LEFT, padx=1)
 
@@ -163,14 +163,14 @@ class StatusBar(tk.Frame):
             right, text="+", width=26, command=on_zoom_in,
             height=26, radius=5,
             normal_color=bg, hover_color=colors["button_hover"],
-            fg="white", font=("Segoe UI Variable Display", 13),
+            fg="white", font=("Segoe UI Variable Display", 16),
         )
         self.btn_zoom_in.pack(side=tk.LEFT, padx=1)
 
         # Zoom label (clickable → fit)
         self.lbl_zoom = tk.Label(
             right, text="100%", bg=bg, fg="white",
-            font=("Segoe UI Variable Display", 9),
+            font=("Segoe UI Variable Display", 12),
             width=6, cursor="hand2",
         )
         self.lbl_zoom.pack(side=tk.LEFT, padx=4)

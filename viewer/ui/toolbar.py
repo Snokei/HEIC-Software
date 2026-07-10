@@ -44,7 +44,7 @@ class Toolbar(tk.Frame):
             normal_color=colors["button_bg"],
             hover_color=colors["button_hover"],
             fg="white",
-            font=("Segoe UI Variable Display", 9),
+            font=("Segoe UI Variable Display", 12),
         )
 
         self.btn_open = RoundedButton(
@@ -83,7 +83,7 @@ class Toolbar(tk.Frame):
             text="HEIC Photo Viewer",
             bg=bg,
             fg="#cccccc",
-            font=("Segoe UI Variable Display", 10),
+            font=("Segoe UI Variable Display", 12),
         )
         self.lbl_filename.grid(row=0, column=1, sticky="nsew")
 

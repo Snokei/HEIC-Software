@@ -57,7 +57,7 @@ class SidebarPanel(tk.Frame):
 
         tk.Label(
             header, text="Info", bg=bg, fg="white",
-            font=("Segoe UI Variable Display", 13, "bold"),
+            font=("Segoe UI Variable Display", 16, "bold"),
         ).pack(side=tk.LEFT)
 
         RoundedButton(
@@ -93,7 +93,7 @@ class SidebarPanel(tk.Frame):
             tk.Label(
                 self._content, text="No photo loaded.",
                 bg=self._colors["panel"], fg="#888888",
-                font=("Segoe UI Variable Display", 10),
+                font=("Segoe UI Variable Display", 12),
             ).pack(pady=20)
             return
 
@@ -117,14 +117,14 @@ class SidebarPanel(tk.Frame):
         def section_label(parent, text):
             tk.Label(
                 parent, text=text, bg=bg, fg="white",
-                font=("Segoe UI Variable Display", 10, "bold"),
+                font=("Segoe UI Variable Display", 12, "bold"),
                 anchor="w",
             ).pack(fill=tk.X)
 
         def info_label(parent, text):
             tk.Label(
                 parent, text=text, bg=bg, fg="#888888",
-                font=("Segoe UI Variable Display", 9),
+                font=("Segoe UI Variable Display", 12),
                 anchor="w", justify=tk.LEFT,
             ).pack(fill=tk.X, pady=(2, 0))
 
@@ -146,7 +146,7 @@ class SidebarPanel(tk.Frame):
             e = tk.Entry(
                 lbl_bg, bg=box_bg, fg="white", relief="flat",
                 insertbackground="white",
-                font=("Segoe UI Variable Display", 10), justify=tk.CENTER,
+                font=("Segoe UI Variable Display", 12), justify=tk.CENTER,
             )
             e.insert(0, file_name)
             e.place(x=10, y=0, width=BOX_W - 20, height=BOX_H)
@@ -232,7 +232,7 @@ class SidebarPanel(tk.Frame):
                 tk.Label(
                     gps_row, text=exif.gps_string,
                     bg=bg, fg="#888888",
-                    font=("Segoe UI Variable Display", 9), anchor="w",
+                    font=("Segoe UI Variable Display", 12), anchor="w",
                 ).pack(side=tk.LEFT, fill=tk.X, expand=True)
                 if exif.altitude_m is not None:
                     info_label(parent, f"Altitude: {exif.altitude_m:.0f} m")
@@ -254,7 +254,7 @@ class SidebarPanel(tk.Frame):
 
             tk.Label(
                 path_row, text=file_path, bg=bg, fg=self._colors.get("accent", "#f08060"),
-                font=("Segoe UI Variable Display", 9),
+                             font=("Segoe UI Variable Display", 12),
                 anchor="w", justify=tk.LEFT, wraplength=230,
             ).pack(side=tk.LEFT, fill=tk.X, expand=True)
 
@@ -266,7 +266,7 @@ class SidebarPanel(tk.Frame):
                 normal_color=bg, hover_color=self._colors["button_hover"],
                 fg="white",
                 command=lambda: self._on_copy_path(file_path) if self._on_copy_path else None,
-                font=("Segoe UI Variable Display", 9),
+                font=("Segoe UI Variable Display", 12),
             )
             copy_btn.pack()
             ToolTip(copy_btn, "Copy path")
@@ -276,7 +276,7 @@ class SidebarPanel(tk.Frame):
                 normal_color=bg, hover_color=self._colors["button_hover"],
                 fg="white",
                 command=lambda: self._on_open_folder(file_path) if self._on_open_folder else None,
-                font=("Segoe UI Variable Display", 9),
+                font=("Segoe UI Variable Display", 12),
             )
             open_btn.pack(pady=(4, 0))
             ToolTip(open_btn, "Open containing folder")

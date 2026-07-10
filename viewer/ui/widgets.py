@@ -107,7 +107,7 @@ class ToolTip:
             background="#252528",
             foreground="#e8e8e8",
             relief=tk.FLAT,
-            font=("Segoe UI Variable Display", 9),
+            font=("Segoe UI Variable Display", 12),
             padx=8,
             pady=4,
         )
@@ -150,7 +150,7 @@ class RoundedButton(tk.Button):
         fg: str,
         hover_fg: Optional[str] = None,
         command: Optional[Callable] = None,
-        font: Tuple = ("Segoe UI Variable Display", 9),
+        font: Tuple = ("Segoe UI Variable Display", 12),
     ) -> None:
         self._width = width
         self._height = height
