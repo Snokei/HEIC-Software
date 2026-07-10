@@ -356,10 +356,15 @@ class HEICViewerApp:
         # Kick preloader
         self._preloader.update(self._files, self._index, clear_cache=clear_cache)
 
-        # Update filmstrip
+        # Update filmstrip — only rebuild when file list actually changes
+        # to avoid destroying/reloading all thumbnails on every selection
         if self._filmstrip_visible:
-            self._filmstrip.set_files(self._files, self._index)
-            self._enqueue_thumbs()
+            if self._files != self._filmstrip._files:
+                self._filmstrip.set_files(self._files, self._index)
+                self._enqueue_thumbs()
+            else:
+                self._filmstrip.highlight(self._index)
+                self._filmstrip._scroll_to_index(self._index)
 
         # Try cache first
         cached = self._cache.get(path)
@@ -409,10 +414,6 @@ class HEICViewerApp:
         # Update sidebar if visible
         if self._sidebar_visible:
             self._sidebar.populate(path, result.image, result.exif)
-
-        # Filmstrip highlight
-        if self._filmstrip_visible:
-            self._filmstrip.highlight(self._index)
 
         # Persist recent
         add_recent_file(self.settings, path)
