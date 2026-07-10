@@ -22,16 +22,21 @@ def make_rounded_rect_image(
     radius: int,
     bg_color: str,
     parent_bg: str,
-) -> ImageTk.PhotoImage:
+) -> ctk.CTkImage:
     """Create a rounded-rectangle PIL image blended against *parent_bg*."""
-    img = Image.new("RGBA", (width, height), parent_bg)
+    render_scale = 2
+    w_scaled = width * render_scale
+    h_scaled = height * render_scale
+    r_scaled = radius * render_scale
+
+    img = Image.new("RGBA", (w_scaled, h_scaled), parent_bg)
     draw = ImageDraw.Draw(img)
     draw.rounded_rectangle(
-        (0, 0, width - 1, height - 1),
-        radius=radius,
+        (0, 0, w_scaled - 1, h_scaled - 1),
+        radius=r_scaled,
         fill=bg_color,
     )
-    return ImageTk.PhotoImage(img)
+    return ctk.CTkImage(light_image=img, dark_image=img, size=(width, height))
 
 
 def make_rounded_segmented_image(
@@ -43,28 +48,34 @@ def make_rounded_segmented_image(
     border_width: int,
     dividers: list[float],
     parent_bg: str,
-) -> ImageTk.PhotoImage:
+) -> ctk.CTkImage:
     """
     Create a rounded rectangle with optional vertical divider lines.
     *dividers* is a list of relative x positions (0.0–1.0).
     """
-    img = Image.new("RGBA", (width, height), parent_bg)
+    render_scale = 2
+    w_scaled = width * render_scale
+    h_scaled = height * render_scale
+    r_scaled = radius * render_scale
+    bw_scaled = border_width * render_scale
+
+    img = Image.new("RGBA", (w_scaled, h_scaled), parent_bg)
     draw = ImageDraw.Draw(img)
     draw.rounded_rectangle(
-        (0, 0, width - 1, height - 1),
-        radius=radius,
+        (0, 0, w_scaled - 1, h_scaled - 1),
+        radius=r_scaled,
         fill=fill_color,
         outline=border_color,
-        width=border_width,
+        width=bw_scaled,
     )
     for d in dividers:
-        x = int(width * d)
+        x = int(w_scaled * d)
         draw.line(
-            (x, border_width, x, height - 1 - border_width),
+            (x, bw_scaled, x, h_scaled - 1 - bw_scaled),
             fill=border_color,
-            width=border_width,
+            width=bw_scaled,
         )
-    return ImageTk.PhotoImage(img)
+    return ctk.CTkImage(light_image=img, dark_image=img, size=(width, height))
 
 
 def make_button_image_with_icon(
@@ -74,27 +85,37 @@ def make_button_image_with_icon(
     bg_color: str,
     parent_bg: str,
     icon_pil: Image.Image,
-) -> ImageTk.PhotoImage:
+) -> ctk.CTkImage:
     """
     Create a rounded-rectangle button image with a PIL icon composited on top,
     centred within the button.
     """
-    img = Image.new("RGBA", (width, height), parent_bg)
+    render_scale = 2
+    w_scaled = width * render_scale
+    h_scaled = height * render_scale
+    r_scaled = radius * render_scale
+
+    img = Image.new("RGBA", (w_scaled, h_scaled), parent_bg)
     draw = ImageDraw.Draw(img)
     draw.rounded_rectangle(
-        (0, 0, width - 1, height - 1),
-        radius=radius,
+        (0, 0, w_scaled - 1, h_scaled - 1),
+        radius=r_scaled,
         fill=bg_color,
     )
-    # Centre the icon
+    
+    # Scale icon to match render_scale
     iw, ih = icon_pil.size
-    x = (width - iw) // 2
-    y = (height - ih) // 2
-    if icon_pil.mode == "RGBA":
-        img.paste(icon_pil, (x, y), icon_pil)
+    icon_scaled = icon_pil.resize((iw * render_scale, ih * render_scale), Image.Resampling.LANCZOS)
+
+    # Centre the icon
+    iw_s, ih_s = icon_scaled.size
+    x = (w_scaled - iw_s) // 2
+    y = (h_scaled - ih_s) // 2
+    if icon_scaled.mode == "RGBA":
+        img.paste(icon_scaled, (x, y), icon_scaled)
     else:
-        img.paste(icon_pil, (x, y))
-    return ImageTk.PhotoImage(img)
+        img.paste(icon_scaled, (x, y))
+    return ctk.CTkImage(light_image=img, dark_image=img, size=(width, height))
 
 
 # ---------------------------------------------------------------------------

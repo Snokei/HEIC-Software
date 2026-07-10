@@ -14,6 +14,7 @@ from typing import Callable, Optional
 from PIL import Image
 
 from ..exif_reader import ExifData
+from .lucide_icons import get_icon
 from .widgets import ToolTip, make_rounded_rect_image, make_rounded_segmented_image
 
 
@@ -265,9 +266,10 @@ class SidebarPanel(ctk.CTkFrame):
             btn_frame.pack(side=ctk.RIGHT)
 
             copy_btn = ctk.CTkButton(
-                btn_frame, text="⎘", width=24, height=24,
+                btn_frame, text="", width=24, height=24,
                 fg_color=bg, hover_color=self._colors["button_hover"],
                 text_color="white",
+                image=get_icon("clipboard-copy", size=14, color="#ffffff"),
                 command=lambda: self._on_copy_path(file_path) if self._on_copy_path else None,
                 font=("Segoe UI Variable Display", 12),
                 corner_radius=4,
@@ -276,9 +278,10 @@ class SidebarPanel(ctk.CTkFrame):
             ToolTip(copy_btn, "Copy path")
 
             open_btn = ctk.CTkButton(
-                btn_frame, text="📂", width=24, height=24,
+                btn_frame, text="", width=24, height=24,
                 fg_color=bg, hover_color=self._colors["button_hover"],
                 text_color="white",
+                image=get_icon("external-link", size=14, color="#ffffff"),
                 command=lambda: self._on_open_folder(file_path) if self._on_open_folder else None,
                 font=("Segoe UI Variable Display", 12),
                 corner_radius=4,

@@ -229,16 +229,20 @@ class HEICViewerApp:
             on_select=self.load_by_index,
         )
 
-        # Overlay navigation arrows — use ctk.CTkButton instead of RoundedButton
-        # since customtkinter handles rounded corners natively
+        # Overlay navigation arrows — Lucide chevron icons
+        from .ui.lucide_icons import get_icon
+        self._prev_icon = get_icon("chevron-left", size=24, color="white")
+        self._next_icon = get_icon("chevron-right", size=24, color="white")
         self._btn_prev = ctk.CTkButton(
-            self.canvas_view.canvas, text="◀", width=36, height=72,
+            self.canvas_view.canvas, text="", width=36, height=72,
+            image=self._prev_icon,
             fg_color="#26262e", hover_color="#363642", text_color="white",
             font=("Segoe UI Variable Display", 20),
             corner_radius=6, command=self.show_prev,
         )
         self._btn_next = ctk.CTkButton(
-            self.canvas_view.canvas, text="▶", width=36, height=72,
+            self.canvas_view.canvas, text="", width=36, height=72,
+            image=self._next_icon,
             fg_color="#26262e", hover_color="#363642", text_color="white",
             font=("Segoe UI Variable Display", 20),
             corner_radius=6, command=self.show_next,

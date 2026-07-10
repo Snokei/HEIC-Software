@@ -9,6 +9,7 @@ from __future__ import annotations
 import customtkinter as ctk
 from typing import Callable, Optional
 
+from .lucide_icons import get_icon
 from .widgets import ToolTip
 
 
@@ -48,32 +49,47 @@ class Toolbar(ctk.CTkFrame):
             corner_radius=7,
         )
 
+        # Add Files — Lucide image-plus icon
+        self._add_files_icon = get_icon("image-plus", size=16, color="white")
         self.btn_open = ctk.CTkButton(
-            left, text="Add Files", width=86, command=on_add_files, **btn_style
+            left, text="  Add Files", width=98, image=self._add_files_icon,
+            compound=ctk.LEFT, command=on_add_files, **btn_style
         )
         self.btn_open.pack(side=ctk.LEFT, padx=3)
         ToolTip(self.btn_open, "Open image files  (Ctrl+O)")
 
+        # Add Folder — Lucide folder-plus icon
+        self._add_folder_icon = get_icon("folder-plus", size=16, color="white")
         self.btn_folder = ctk.CTkButton(
-            left, text="Add Folder", width=90, command=on_add_folder, **btn_style
+            left, text="  Add Folder", width=100, image=self._add_folder_icon,
+            compound=ctk.LEFT, command=on_add_folder, **btn_style
         )
         self.btn_folder.pack(side=ctk.LEFT, padx=3)
         ToolTip(self.btn_folder, "Open folder  (Ctrl+Shift+O)")
 
+        # Export JPG — Lucide save icon
+        self._export_icon = get_icon("save", size=16, color="white")
         self.btn_export = ctk.CTkButton(
-            left, text="Export JPG", width=86, command=on_export, **btn_style
+            left, text="  Export JPG", width=96, image=self._export_icon,
+            compound=ctk.LEFT, command=on_export, **btn_style
         )
         self.btn_export.pack(side=ctk.LEFT, padx=3)
         ToolTip(self.btn_export, "Export to JPEG")
 
+        # Copy — Lucide copy icon
+        self._copy_icon = get_icon("copy", size=16, color="white")
         self.btn_copy = ctk.CTkButton(
-            left, text="⎘ Copy", width=72, command=on_copy_image, **btn_style
+            left, text="  Copy", width=76, image=self._copy_icon,
+            compound=ctk.LEFT, command=on_copy_image, **btn_style
         )
         self.btn_copy.pack(side=ctk.LEFT, padx=3)
         ToolTip(self.btn_copy, "Copy image to clipboard  (Ctrl+C)")
 
+        # Save As — Lucide file-edit icon
+        self._save_as_icon = get_icon("file-edit", size=16, color="white")
         self.btn_save_as = ctk.CTkButton(
-            left, text="Save As", width=72, command=on_save_as, **btn_style
+            left, text="  Save As", width=82, image=self._save_as_icon,
+            compound=ctk.LEFT, command=on_save_as, **btn_style
         )
         self.btn_save_as.pack(side=ctk.LEFT, padx=3)
         ToolTip(self.btn_save_as, "Save copy as…  (Ctrl+S)")

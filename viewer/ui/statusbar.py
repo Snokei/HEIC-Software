@@ -1,7 +1,7 @@
 """
 viewer/ui/statusbar.py
 Bottom status bar: left controls, image counter, zoom controls.
-Now uses customtkinter.
+Now uses customtkinter. All buttons use modern Lucide SVG icons.
 """
 
 from __future__ import annotations
@@ -9,8 +9,8 @@ from __future__ import annotations
 import customtkinter as ctk
 from typing import Callable, Optional
 
-from .lucide_icons import get_icon_pil
-from .widgets import ToolTip, make_button_image_with_icon
+from .lucide_icons import get_icon
+from .widgets import ToolTip
 
 
 class StatusBar(ctk.CTkFrame):
@@ -51,34 +51,22 @@ class StatusBar(ctk.CTkFrame):
         left.grid(row=0, column=0, padx=12, pady=6, sticky="w")
 
         # Info button with SVG icon
-        info_icon_pil = get_icon_pil("info", size=26, color="#ffffff")
-        info_icon_active_pil = get_icon_pil("info", size=26, color=self._colors.get("accent", "#f08060"))
-
-        self._info_img_normal = make_button_image_with_icon(
-            28, 28, 5, bg, bg, info_icon_pil,
-        )
-        self._info_img_hover = make_button_image_with_icon(
-            28, 28, 5, colors["button_hover"], bg, info_icon_pil,
-        )
-        self._info_img_active = make_button_image_with_icon(
-            28, 28, 5, bg, bg, info_icon_active_pil,
-        )
-        self._info_img_active_hover = make_button_image_with_icon(
-            28, 28, 5, colors["button_hover"], bg, info_icon_active_pil,
-        )
+        self._info_icon = get_icon("info", size=18, color="#ffffff")
 
         self.btn_info = ctk.CTkButton(
             left, text="", width=28, height=28,
             fg_color=bg, hover_color=colors["button_hover"],
             text_color="white", command=on_toggle_info,
             font=("Segoe UI Variable Display", 14),
-            corner_radius=5, image=self._info_img_normal,
+            corner_radius=5, image=self._info_icon,
         )
         self.btn_info.pack(side=ctk.LEFT, padx=2)
         ToolTip(self.btn_info, "Image Properties  (I)")
 
+        # Filmstrip toggle — modern panel-bottom Lucide icon
+        self._film_icon = get_icon("panel-bottom", size=18, color="#ffffff")
         self.btn_filmstrip = ctk.CTkButton(
-            left, text="🎞", width=28, height=28,
+            left, text="", width=28, height=28, image=self._film_icon,
             fg_color=bg, hover_color=colors["button_hover"],
             text_color="white", command=on_toggle_filmstrip,
             font=("Segoe UI Variable Display", 14),
@@ -87,8 +75,10 @@ class StatusBar(ctk.CTkFrame):
         self.btn_filmstrip.pack(side=ctk.LEFT, padx=2)
         ToolTip(self.btn_filmstrip, "Toggle Filmstrip  (F)")
 
+        # Slideshow — modern presentation Lucide icon
+        self._slideshow_icon = get_icon("presentation", size=18, color="#ffffff")
         self.btn_slideshow = ctk.CTkButton(
-            left, text="▶", width=28, height=28,
+            left, text="", width=28, height=28, image=self._slideshow_icon,
             fg_color=bg, hover_color=colors["button_hover"],
             text_color="white", command=on_slideshow,
             font=("Segoe UI Variable Display", 14),
@@ -97,8 +87,10 @@ class StatusBar(ctk.CTkFrame):
         self.btn_slideshow.pack(side=ctk.LEFT, padx=2)
         ToolTip(self.btn_slideshow, "Start / Stop Slideshow  (S)")
 
+        # Open folder — modern external-link Lucide icon
+        self._open_folder_icon = get_icon("external-link", size=18, color="#ffffff")
         self.btn_open_folder = ctk.CTkButton(
-            left, text="📂", width=28, height=28,
+            left, text="", width=28, height=28, image=self._open_folder_icon,
             fg_color=bg, hover_color=colors["button_hover"],
             text_color="white", command=on_open_folder,
             font=("Segoe UI Variable Display", 14),
@@ -143,28 +135,37 @@ class StatusBar(ctk.CTkFrame):
             corner_radius=5,
         )
 
-        self.btn_delete = ctk.CTkButton(right, text="🗑", command=on_delete, **btn_style)
+        # Delete — Lucide trash-2 icon
+        self._trash_icon = get_icon("trash-2", size=18, color="#ffffff")
+        self.btn_delete = ctk.CTkButton(right, text="", image=self._trash_icon, command=on_delete, **btn_style)
         self.btn_delete.pack(side=ctk.LEFT, padx=2)
         ToolTip(self.btn_delete, "Move to Recycle Bin  (Del)")
 
-        self.btn_rotate = ctk.CTkButton(right, text="⟳", command=on_rotate, **btn_style)
+        # Rotate — Lucide rotate-ccw icon
+        self._rotate_icon = get_icon("rotate-ccw", size=18, color="#ffffff")
+        self.btn_rotate = ctk.CTkButton(right, text="", image=self._rotate_icon, command=on_rotate, **btn_style)
         self.btn_rotate.pack(side=ctk.LEFT, padx=2)
         ToolTip(self.btn_rotate, "Rotate 90° clockwise  (R)")
 
-        self.btn_fit = ctk.CTkButton(right, text="⛶", command=on_fit, **btn_style)
+        # Fit — Lucide fullscreen icon
+        self._fit_icon = get_icon("fullscreen", size=18, color="#ffffff")
+        self.btn_fit = ctk.CTkButton(right, text="", image=self._fit_icon, command=on_fit, **btn_style)
         self.btn_fit.pack(side=ctk.LEFT, padx=2)
         ToolTip(self.btn_fit, "Fit to window  (F key)")
 
-        self.btn_print = ctk.CTkButton(right, text="🖨", command=on_print, **btn_style)
+        # Print — Lucide printer icon
+        self._print_icon = get_icon("printer", size=18, color="#ffffff")
+        self.btn_print = ctk.CTkButton(right, text="", image=self._print_icon, command=on_print, **btn_style)
         self.btn_print.pack(side=ctk.LEFT, padx=2)
         ToolTip(self.btn_print, "Print  (Ctrl+P)")
 
         # Thin separator
         ctk.CTkLabel(right, text="│", text_color="#44444f", font=("Arial", 14)).pack(side=ctk.LEFT, padx=4)
 
-        # Zoom out
+        # Zoom out — Lucide zoom-out icon
+        self._zoom_out_icon = get_icon("zoom-out", size=18, color="#ffffff")
         self.btn_zoom_out = ctk.CTkButton(
-            right, text="−", width=26, height=26, command=on_zoom_out,
+            right, text="", image=self._zoom_out_icon, width=26, height=26, command=on_zoom_out,
             fg_color=bg, hover_color=colors["button_hover"],
             text_color="white", font=("Segoe UI Variable Display", 16),
             corner_radius=5,
@@ -187,9 +188,10 @@ class StatusBar(ctk.CTkFrame):
         )
         self.zoom_slider.pack(side=ctk.LEFT, padx=4)
 
-        # Zoom in
+        # Zoom in — Lucide zoom-in icon
+        self._zoom_in_icon = get_icon("zoom-in", size=18, color="#ffffff")
         self.btn_zoom_in = ctk.CTkButton(
-            right, text="+", width=26, height=26, command=on_zoom_in,
+            right, text="", image=self._zoom_in_icon, width=26, height=26, command=on_zoom_in,
             fg_color=bg, hover_color=colors["button_hover"],
             text_color="white", font=("Segoe UI Variable Display", 16),
             corner_radius=5,
@@ -229,15 +231,16 @@ class StatusBar(ctk.CTkFrame):
             self.lbl_counter.configure(text="")
 
     def set_info_active(self, active: bool) -> None:
-        if active:
-            self.btn_info.configure(image=self._info_img_active)
-        else:
-            self.btn_info.configure(image=self._info_img_normal)
+        color = self._colors.get("accent", "#f08060") if active else "#ffffff"
+        self._info_icon = get_icon("info", size=18, color=color)
+        self.btn_info.configure(image=self._info_icon)
 
     def set_filmstrip_active(self, active: bool) -> None:
-        color = self._colors.get("accent", "#f08060") if active else "white"
-        self.btn_filmstrip.configure(text_color=color)
+        color = self._colors.get("accent", "#f08060") if active else "#ffffff"
+        self._film_icon = get_icon("panel-bottom", size=18, color=color)
+        self.btn_filmstrip.configure(image=self._film_icon)
 
     def set_slideshow_active(self, active: bool) -> None:
-        color = self._colors.get("accent", "#f08060") if active else "white"
-        self.btn_slideshow.configure(text_color=color)
+        color = self._colors.get("accent", "#f08060") if active else "#ffffff"
+        self._slideshow_icon = get_icon("presentation", size=18, color=color)
+        self.btn_slideshow.configure(image=self._slideshow_icon)

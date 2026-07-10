@@ -1,18 +1,76 @@
 """
 viewer/ui/lucide_icons.py
 Lucide icon rendering engine using pure Python (Pillow + SVG path parsing).
-No system-level dependencies needed.
+Supports loading SVG files via the tksvg library for better rendering.
+All icons are modern Lucide-style MIT-licensed icons.
 """
 
 from __future__ import annotations
 
 import logging
+import os
+import tempfile
 from math import ceil, cos, degrees, pi, radians, sin, sqrt, tan
 from typing import Optional
 
 from PIL import Image, ImageDraw, ImageTk
+import customtkinter as ctk
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# tksvg — load SVG files as Tk PhotoImages, then convert to PIL
+# ---------------------------------------------------------------------------
+
+_HAS_TKSVG = False
+try:
+    import tksvg
+    _HAS_TKSVG = True
+except ImportError:
+    logger.info("tksvg not installed; falling back to built-in SVG path renderer")
+
+
+def _load_svg_as_pil(filepath: str, size: int, color: str) -> Optional[Image.Image]:
+    """
+    Load an SVG file via tksvg, recolor the strokes, and return a PIL Image.
+    Returns None if tksvg is unavailable or loading fails.
+    """
+    if not _HAS_TKSVG:
+        return None
+
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            svg_data = f.read()
+
+        # Replace currentColor (used in Lucide SVGs) with the requested color
+        svg_data = svg_data.replace("currentColor", color)
+
+        # Auto-compute scale: the SVG viewBox is 24×24; we want it at *size* pixels
+        scale = size / 24.0
+
+        svg_img = tksvg.SvgImage(data=svg_data, scale=scale)
+
+        # Convert the Tk PhotoImage to PIL via a temporary PNG file
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        tmp_name = tmp.name
+        tmp.close()
+        try:
+            svg_img.write(tmp_name, format="png")
+            pil_img = Image.open(tmp_name)
+            pil_img.load()
+            # Ensure exact size (tksvg may round slightly)
+            if pil_img.size != (size, size):
+                pil_img = pil_img.resize((size, size), Image.Resampling.LANCZOS)
+            return pil_img
+        finally:
+            try:
+                os.unlink(tmp_name)
+            except Exception:
+                pass
+    except Exception as exc:
+        logger.warning("SVG load failed for %s: %s", filepath, exc)
+        return None
+
 
 # ---------------------------------------------------------------------------
 # Minimal SVG path parser
@@ -271,7 +329,7 @@ def _draw_svg_path(draw: ImageDraw.ImageDraw, path_str: str, stroke_color, strok
 
 
 # ---------------------------------------------------------------------------
-# Lucide SVG icon definitions (MIT license — https://lucide.dev)
+# Modern Lucide SVG icon definitions (MIT license — https://lucide.dev)
 # ---------------------------------------------------------------------------
 
 _ICON_PATHS: dict[str, str] = {
@@ -290,14 +348,9 @@ _ICON_PATHS: dict[str, str] = {
     ),
 
     # Status bar left — info icon (circle-i)
-    # The dot is a small diamond instead of a 0.01-unit line (H12.01)
-    # which disappears during 4x oversampling + LANCZOS downscale.
     "info": (
-        "M12 8V12 "
-        "M11 16l1 1 1-1-1-1Z "
-        "M22 12C22 17.5228 17.5228 22 12 22"
-        "C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2"
-        "C17.5228 2 22 6.47715 22 12Z"
+        "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z "
+        "M12 8v4 M12 16h.01"
     ),
     "images": (
         "M18 22H4a2 2 0 0 1-2-2V6 "
@@ -353,10 +406,92 @@ _ICON_PATHS: dict[str, str] = {
         "M9 18a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h7l5 5v9a2 2 0 0 1-2 2Z "
         "M15 20v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1"
     ),
+
+    # NEW MODERN ICONS
+    # Filmstrip / panels icon
+    "film": (
+        "M2 8h20 M2 16h20 "
+        "M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"
+    ),
+
+    # Panel bottom (filmstrip layout)
+    "panel-bottom": (
+        "M2 4h20 "
+        "M2 4v16a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V4"
+    ),
+
+    # Panel left open (sidebar toggle)
+    "panel-left-open": (
+        "M4 2v20 "
+        "M4 2h16a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z "
+        "M10 10l-3 2 3 2"
+    ),
+
+    # Panel left close
+    "panel-left-close": (
+        "M4 2v20 "
+        "M4 2h16a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z "
+        "M14 10l3 2-3 2"
+    ),
+
+    # External link (open folder location)
+    "external-link": (
+        "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6 "
+        "M15 3h6v6 "
+        "M10 14L21 3"
+    ),
+
+    # Clipboard copy
+    "clipboard-copy": (
+        "M8 2h8a2 2 0 0 1 2 2v2 "
+        "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2 "
+        "M12 11v6 M9 14l3 3 3-3"
+    ),
+
+    # Slideshow / presentation
+    "presentation": (
+        "M2 3h20 "
+        "M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3 "
+        "M7 21l5-5 5 5"
+    ),
+
+    # Image plus (add files)
+    "image-plus": (
+        "M21 12v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8 "
+        "M14 21h4 M16 19v4"
+    ),
+
+    # Folder plus (add folder)
+    "folder-plus": (
+        "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z "
+        "M12 10v6 M9 13h6"
+    ),
+
+    # File edit (save as)
+    "file-edit": (
+        "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z "
+        "M14 2v6h6 "
+        "M9 15l3-3 6 6 "
+        "M15 18l-3 3"
+    ),
+
+    # Fullscreen (fit to window)
+    "fullscreen": (
+        "M8 3H5a2 2 0 0 0-2 2v3 "
+        "M21 8V5a2 2 0 0 0-2-2h-3 "
+        "M16 21h3a2 2 0 0 0 2-2v-3 "
+        "M3 16v3a2 2 0 0 0 2 2h3"
+    ),
 }
 
-# Cache for rendered icons: key = (name, size, color_hex) -> PhotoImage
-_icon_cache: dict[tuple[str, int, str], ImageTk.PhotoImage] = {}
+# Cache for rendered icons: key = (name, size, color_hex) -> CTkImage
+_icon_cache: dict[tuple[str, int, str], ctk.CTkImage] = {}
+
+# Path to the assets directory (two levels up from viewer/ui/, then into assets/)
+_ASSETS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "assets",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -368,16 +503,19 @@ def get_icon(
     size: int = 24,
     color: str = "#ffffff",
     stroke_width: int = 2,
-) -> ImageTk.PhotoImage:
+) -> ctk.CTkImage:
     """
-    Return a rendered Lucide icon as a PhotoImage.
+    Return a rendered icon as a CTkImage.
+
+    For all icons, this attempts to load native vector SVG files from the assets/ directory
+    using tksvg (with 2x size for high-DPI scaling quality), falling back to high-res PIL path rendering.
 
     Parameters
     ----------
     name : str
-        Lucide icon name (e.g. "chevron-left", "info", "zoom-in").
+        Icon name (e.g. "chevron-left", "info", "zoom-in").
     size : int
-        Desired width/height in pixels.
+        Desired logical width/height in pixels.
     color : str
         Hex colour string (e.g. "#ffffff").
     stroke_width : int
@@ -388,17 +526,43 @@ def get_icon(
     if cached is not None:
         return cached
 
+    # Render/load at a higher scale for High DPI crispness
+    render_scale = 2
+    render_size = size * render_scale
+
+    # Try loading from an SVG file in assets/ first using multiple candidate styles
+    pascal_name = "".join(part.capitalize() for part in name.split("-"))
+    candidates = [
+        f"{pascal_name}.svg",
+        f"{name.title()}.svg",
+        f"{name}.svg",
+    ]
+    svg_path = None
+    for cand in candidates:
+        cand_path = os.path.join(_ASSETS_DIR, cand)
+        if os.path.isfile(cand_path):
+            svg_path = cand_path
+            break
+
+    if svg_path is not None:
+        pil_img = _load_svg_as_pil(svg_path, render_size, color)
+        if pil_img is not None:
+            ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(size, size))
+            _icon_cache[cache_key] = ctk_img
+            return ctk_img
+
+    # Fall back to built-in path rendering
     path_str = _ICON_PATHS.get(name)
     if path_str is None:
         logger.warning("Unknown Lucide icon: %s", name)
-        img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-        tk_img = ImageTk.PhotoImage(img)
-        _icon_cache[cache_key] = tk_img
-        return tk_img
+        img = Image.new("RGBA", (render_size, render_size), (0, 0, 0, 0))
+        ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(size, size))
+        _icon_cache[cache_key] = ctk_img
+        return ctk_img
 
-    # Create image with 4x oversampling for anti-aliasing
+    # Create image with 4x oversampling for anti-aliasing (relative to render_size)
     scale = 4
-    img_size = size * scale
+    img_size = render_size * scale
     img = Image.new("RGBA", (img_size, img_size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
@@ -412,12 +576,12 @@ def get_icon(
     # Draw the path
     _draw_svg_path(draw, transformed_path, color, stroke_width * scale)
 
-    # Downscale for anti-aliasing
-    img = img.resize((size, size), Image.Resampling.LANCZOS)
+    # Downscale to render_size for anti-aliasing
+    img = img.resize((render_size, render_size), Image.Resampling.LANCZOS)
 
-    tk_img = ImageTk.PhotoImage(img)
-    _icon_cache[cache_key] = tk_img
-    return tk_img
+    ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(size, size))
+    _icon_cache[cache_key] = ctk_img
+    return ctk_img
 
 
 def _transform_path(path_str: str, scale: float, margin: float) -> str:
@@ -518,9 +682,32 @@ def get_icon_pil(
     stroke_width: int = 2,
 ) -> Image.Image:
     """
-    Return a rendered Lucide icon as a PIL Image (RGBA).
+    Return a rendered icon as a PIL Image (RGBA).
     Useful for compositing onto button backgrounds.
+
+    For the "info" icon, this loads assets/Info.svg via tksvg when available.
+    All other icons are rendered from the built-in SVG path definitions.
     """
+    # Try loading from an SVG file in assets/ first using multiple candidate styles
+    pascal_name = "".join(part.capitalize() for part in name.split("-"))
+    candidates = [
+        f"{pascal_name}.svg",
+        f"{name.title()}.svg",
+        f"{name}.svg",
+    ]
+    svg_path = None
+    for cand in candidates:
+        cand_path = os.path.join(_ASSETS_DIR, cand)
+        if os.path.isfile(cand_path):
+            svg_path = cand_path
+            break
+
+    if svg_path is not None:
+        pil_img = _load_svg_as_pil(svg_path, size, color)
+        if pil_img is not None:
+            return pil_img
+
+    # Fall back to built-in path rendering
     path_str = _ICON_PATHS.get(name)
     if path_str is None:
         logger.warning("Unknown Lucide icon: %s", name)
