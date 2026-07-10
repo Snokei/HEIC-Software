@@ -1,6 +1,7 @@
 """
 viewer/ui/canvas_view.py
 Zoomable, pannable image canvas with progressive rendering.
+Now uses customtkinter.
 
 Strategy:
   1. On zoom/resize: immediately show a fast BILINEAR preview
@@ -12,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
+import customtkinter as ctk
 from typing import Callable, Optional, Tuple
 
 from PIL import Image, ImageFilter, ImageTk
@@ -22,7 +24,7 @@ ZOOM_MIN = 0.02
 ZOOM_MAX = 16.0
 
 
-class ZoomableCanvas(tk.Frame):
+class ZoomableCanvas(ctk.CTkFrame):
     """
     A self-contained frame containing a scrollable Canvas for image display.
     Exposes a simple API used by HEICViewerApp.
@@ -30,13 +32,13 @@ class ZoomableCanvas(tk.Frame):
 
     def __init__(
         self,
-        parent: tk.Widget,
+        parent: ctk.CTkBaseClass,
         bg: str = "#1b1b22",
         on_resize: Optional[Callable] = None,
         on_double_click: Optional[Callable] = None,
         on_zoom_change: Optional[Callable[[float], None]] = None,
     ) -> None:
-        super().__init__(parent, bg=bg)
+        super().__init__(parent, fg_color=bg)
         self._bg = bg
         self._on_resize_cb = on_resize
         self._on_double_click_cb = on_double_click

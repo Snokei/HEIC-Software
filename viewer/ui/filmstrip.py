@@ -1,12 +1,14 @@
 """
 viewer/ui/filmstrip.py
 Horizontal filmstrip panel with async thumbnail population.
+Now uses customtkinter.
 """
 
 from __future__ import annotations
 
 import logging
 import tkinter as tk
+import customtkinter as ctk
 from typing import Callable, Optional
 
 from PIL import ImageTk
@@ -14,7 +16,7 @@ from PIL import ImageTk
 logger = logging.getLogger(__name__)
 
 
-class FilmstripPanel(tk.Frame):
+class FilmstripPanel(ctk.CTkFrame):
     """
     A horizontal strip of image thumbnails beneath the main canvas.
     Thumbnails are inserted asynchronously via on_thumb_ready().
@@ -28,12 +30,12 @@ class FilmstripPanel(tk.Frame):
 
     def __init__(
         self,
-        parent: tk.Widget,
+        parent: ctk.CTkBaseClass,
         colors: dict,
         on_select: Optional[Callable[[int], None]] = None,
     ) -> None:
         bg = colors["panel"]
-        super().__init__(parent, bg=bg, height=self.PANEL_HEIGHT)
+        super().__init__(parent, fg_color=bg, height=self.PANEL_HEIGHT)
         self.grid_propagate(False)
         self.pack_propagate(False)
         self._colors = colors
@@ -45,13 +47,13 @@ class FilmstripPanel(tk.Frame):
 
         # Canvas
         self._canvas = tk.Canvas(self, bg=bg, highlightthickness=0, height=self.ROW_HEIGHT)
-        self._canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self._canvas.pack(side=ctk.TOP, fill=ctk.BOTH, expand=True)
 
         # Custom scrollbar
-        self._scroll_bg = tk.Frame(self, bg="#1e1e24", height=6)
-        self._scroll_bg.pack(side=tk.BOTTOM, fill=tk.X)
+        self._scroll_bg = ctk.CTkFrame(self, fg_color="#1e1e24", height=6)
+        self._scroll_bg.pack(side=ctk.BOTTOM, fill=ctk.X)
         self._scroll_bg.pack_propagate(False)
-        self._scroll_thumb = tk.Frame(self._scroll_bg, bg="#666677", height=6)
+        self._scroll_thumb = ctk.CTkFrame(self._scroll_bg, fg_color="#666677", height=6)
 
         self._canvas.config(xscrollcommand=self._update_scrollbar)
         self._canvas.bind("<MouseWheel>",      self._on_mousewheel)

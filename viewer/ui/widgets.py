@@ -1,12 +1,12 @@
 """
 viewer/ui/widgets.py
-Shared UI primitives: RoundedButton, ToolTip, rounded image helpers.
-Extracted from the original monolith and lightly improved.
+Shared UI primitives: ToolTip, rounded image helpers.
+Now uses customtkinter as the base for all widgets.
 """
 
 from __future__ import annotations
 
-import tkinter as tk
+import customtkinter as ctk
 from typing import Callable, Optional, Tuple
 
 from PIL import Image, ImageDraw, ImageTk
@@ -67,6 +67,36 @@ def make_rounded_segmented_image(
     return ImageTk.PhotoImage(img)
 
 
+def make_button_image_with_icon(
+    width: int,
+    height: int,
+    radius: int,
+    bg_color: str,
+    parent_bg: str,
+    icon_pil: Image.Image,
+) -> ImageTk.PhotoImage:
+    """
+    Create a rounded-rectangle button image with a PIL icon composited on top,
+    centred within the button.
+    """
+    img = Image.new("RGBA", (width, height), parent_bg)
+    draw = ImageDraw.Draw(img)
+    draw.rounded_rectangle(
+        (0, 0, width - 1, height - 1),
+        radius=radius,
+        fill=bg_color,
+    )
+    # Centre the icon
+    iw, ih = icon_pil.size
+    x = (width - iw) // 2
+    y = (height - ih) // 2
+    if icon_pil.mode == "RGBA":
+        img.paste(icon_pil, (x, y), icon_pil)
+    else:
+        img.paste(icon_pil, (x, y))
+    return ImageTk.PhotoImage(img)
+
+
 # ---------------------------------------------------------------------------
 # ToolTip
 # ---------------------------------------------------------------------------
@@ -76,10 +106,10 @@ class ToolTip:
 
     _DELAY_MS = 600  # Wait before showing
 
-    def __init__(self, widget: tk.Widget, text: str) -> None:
+    def __init__(self, widget: ctk.CTkBaseClass | ctk.windows.ctk_tk.CTk, text: str) -> None:
         self.widget = widget
         self.text = text
-        self._tip_window: Optional[tk.Toplevel] = None
+        self._tip_window: Optional[ctk.CTkToplevel] = None
         self._after_id: Optional[str] = None
         widget.bind("<Enter>", self._schedule_show, add="+")
         widget.bind("<Leave>", self._cancel, add="+")
@@ -95,23 +125,20 @@ class ToolTip:
         x = self.widget.winfo_rootx() + (self.widget.winfo_width() // 2) - 50
         y = self.widget.winfo_rooty() + self.widget.winfo_height() + 6
 
-        tw = tk.Toplevel(self.widget)
+        tw = ctk.CTkToplevel(self.widget)
         tw.wm_overrideredirect(True)
         tw.wm_geometry(f"+{x}+{y}")
         tw.attributes("-topmost", True)
+        tw.configure(fg_color="#252528")
 
-        label = tk.Label(
+        label = ctk.CTkLabel(
             tw,
             text=self.text,
-            justify=tk.LEFT,
-            background="#252528",
-            foreground="#e8e8e8",
-            relief=tk.FLAT,
+            justify="left",
+            text_color="#e8e8e8",
             font=("Segoe UI Variable Display", 12),
-            padx=8,
-            pady=4,
         )
-        label.pack()
+        label.pack(padx=8, pady=4)
         self._tip_window = tw
 
     def _cancel(self, event=None) -> None:
@@ -128,83 +155,11 @@ class ToolTip:
 
 
 # ---------------------------------------------------------------------------
-# RoundedButton
-# ---------------------------------------------------------------------------
-
-class RoundedButton(tk.Button):
-    """
-    A tk.Button with a PIL-rendered rounded-rectangle background image.
-    The background is blended against the parent's background color so
-    rounded corners appear seamless.
-    """
-
-    def __init__(
-        self,
-        parent: tk.Widget,
-        text: str,
-        width: int,
-        height: int,
-        radius: int,
-        normal_color: str,
-        hover_color: str,
-        fg: str,
-        hover_fg: Optional[str] = None,
-        command: Optional[Callable] = None,
-        font: Tuple = ("Segoe UI Variable Display", 12),
-    ) -> None:
-        self._width = width
-        self._height = height
-        self._radius = radius
-        self._normal_color = normal_color
-        self._hover_color = hover_color
-        self._fg = fg
-        self._hover_fg = hover_fg or fg
-
-        parent_bg = parent.cget("bg")
-
-        self._img_normal = make_rounded_rect_image(width, height, radius, normal_color, parent_bg)
-        self._img_hover  = make_rounded_rect_image(width, height, radius, hover_color,  parent_bg)
-
-        super().__init__(
-            parent,
-            text=text,
-            image=self._img_normal,
-            compound="center",
-            fg=fg,
-            activeforeground=self._hover_fg,
-            bg=parent_bg,
-            activebackground=parent_bg,
-            relief="flat",
-            bd=0,
-            highlightthickness=0,
-            command=command,
-            font=font,
-            cursor="hand2",
-        )
-
-        self.bind("<Enter>", self._on_enter, add="+")
-        self.bind("<Leave>", self._on_leave, add="+")
-
-    def _on_enter(self, _event=None) -> None:
-        self.config(image=self._img_hover, fg=self._hover_fg)
-
-    def _on_leave(self, _event=None) -> None:
-        self.config(image=self._img_normal, fg=self._fg)
-
-    def set_active(self, active: bool, active_color: str = "#f08060") -> None:
-        """Visually mark this button as toggled on/off."""
-        if active:
-            self.config(fg=active_color)
-        else:
-            self.config(fg=self._fg)
-
-
-# ---------------------------------------------------------------------------
 # Separator
 # ---------------------------------------------------------------------------
 
-def make_separator(parent: tk.Widget, bg: str, horizontal: bool = True) -> tk.Frame:
+def make_separator(parent: ctk.CTkBaseClass, bg: str, horizontal: bool = True) -> ctk.CTkFrame:
     """Return a 1px separator frame."""
     if horizontal:
-        return tk.Frame(parent, height=1, bg=bg)
-    return tk.Frame(parent, width=1, bg=bg)
+        return ctk.CTkFrame(parent, height=1, fg_color=bg)
+    return ctk.CTkFrame(parent, width=1, fg_color=bg)

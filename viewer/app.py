@@ -2,6 +2,7 @@
 viewer/app.py
 HEICViewerApp — main application class.
 Wires together all viewer/* modules into a cohesive UI.
+Now uses customtkinter for better GUI.
 """
 
 from __future__ import annotations
@@ -9,7 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
-import tkinter as tk
+import customtkinter as ctk
 from tkinter import filedialog, messagebox
 from typing import Optional
 
@@ -30,7 +31,7 @@ from .ui.filmstrip import FilmstripPanel
 from .ui.sidebar import SidebarPanel
 from .ui.statusbar import StatusBar
 from .ui.toolbar import Toolbar
-from .ui.widgets import RoundedButton, ToolTip
+from .ui.widgets import ToolTip
 from .windows_integration import (apply_dark_title_bar, copy_image_to_clipboard,
                                    copy_path_to_clipboard, open_containing_folder,
                                    permanent_delete, print_file, register_association,
@@ -75,7 +76,7 @@ LIGHT_COLORS = {
 class HEICViewerApp:
     """Main application controller."""
 
-    def __init__(self, root: tk.Tk) -> None:
+    def __init__(self, root: ctk.CTk) -> None:
         self.root = root
         self.settings: Settings = load_settings()
         self._colors = DARK_COLORS if self.settings.theme == "dark" else LIGHT_COLORS
@@ -151,6 +152,10 @@ class HEICViewerApp:
         self.root.geometry(self.settings.window_geometry)
         self.root.minsize(600, 400)
 
+        # Set customtkinter appearance
+        ctk.set_appearance_mode("dark" if self.settings.theme == "dark" else "light")
+        ctk.set_default_color_theme("dark-blue")
+
         # App icon
         try:
             icon_path = os.path.join(
@@ -179,7 +184,7 @@ class HEICViewerApp:
         c = self._colors
         root = self.root
 
-        root.configure(bg=c["bg"])
+        root.configure(fg_color=c["bg"])
         root.grid_rowconfigure(1, weight=1)
         root.grid_columnconfigure(0, weight=1)
 
@@ -195,7 +200,7 @@ class HEICViewerApp:
         self.toolbar.grid(row=0, column=0, sticky="ew")
 
         # --- Main display area ---
-        self._display = tk.Frame(root, bg=c["bg"])
+        self._display = ctk.CTkFrame(root, fg_color=c["bg"])
         self._display.grid(row=1, column=0, sticky="nsew")
         self._display.grid_rowconfigure(0, weight=1)   # canvas row — expand
         self._display.grid_rowconfigure(1, weight=0)   # filmstrip row — fixed height
@@ -224,23 +229,29 @@ class HEICViewerApp:
             on_select=self.load_by_index,
         )
 
-        # Overlay navigation arrows
-        self._btn_prev = RoundedButton(
-            self.canvas_view.canvas, text="◀", width=36, height=72, radius=6,
-            normal_color="#26262e", hover_color="#363642", fg="white",
-            command=self.show_prev,
+        # Overlay navigation arrows — use ctk.CTkButton instead of RoundedButton
+        # since customtkinter handles rounded corners natively
+        self._btn_prev = ctk.CTkButton(
+            self.canvas_view.canvas, text="◀", width=36, height=72,
+            fg_color="#26262e", hover_color="#363642", text_color="white",
+            font=("Segoe UI Variable Display", 20),
+            corner_radius=6, command=self.show_prev,
         )
-        self._btn_next = RoundedButton(
-            self.canvas_view.canvas, text="▶", width=36, height=72, radius=6,
-            normal_color="#26262e", hover_color="#363642", fg="white",
-            command=self.show_next,
+        self._btn_next = ctk.CTkButton(
+            self.canvas_view.canvas, text="▶", width=36, height=72,
+            fg_color="#26262e", hover_color="#363642", text_color="white",
+            font=("Segoe UI Variable Display", 20),
+            corner_radius=6, command=self.show_next,
         )
 
-        # Context menu
-        self._context_menu = tk.Menu(root, tearoff=0, bg=c["panel"], fg="white",
-                                     activebackground=c["button_hover"],
-                                     activeforeground="white", bd=0,
-                                     font=("Segoe UI Variable Display", 12))
+    # Context menu — use tk.Menu since customtkinter doesn't have a direct replacement
+        import tkinter as tk
+        self._context_menu = tk.Menu(
+            root, tearoff=0, bg=c["panel"], fg="white",
+            activebackground=c["button_hover"],
+            activeforeground="white", bd=0,
+            font=("Segoe UI Variable Display", 12),
+        )
         self._context_menu.add_command(label="Copy Image",          command=self.copy_image)
         self._context_menu.add_command(label="Copy File Path",      command=lambda: self._copy_path(self._current_path))
         self._context_menu.add_separator()
@@ -279,7 +290,7 @@ class HEICViewerApp:
     def _apply_colors(self) -> None:
         """Apply current color palette to root and sub-widgets."""
         c = self._colors
-        self.root.configure(bg=c["bg"])
+        self.root.configure(fg_color=c["bg"])
 
     # ------------------------------------------------------------------
     # File operations
@@ -435,8 +446,8 @@ class HEICViewerApp:
 
     def _update_nav_arrows(self) -> None:
         if len(self._files) > 1:
-            self._btn_prev.place(relx=0.01, rely=0.5, anchor=tk.W)
-            self._btn_next.place(relx=0.99, rely=0.5, anchor=tk.E)
+            self._btn_prev.place(relx=0.01, rely=0.5, anchor=ctk.W)
+            self._btn_next.place(relx=0.99, rely=0.5, anchor=ctk.E)
         else:
             self._btn_prev.place_forget()
             self._btn_next.place_forget()
@@ -734,7 +745,7 @@ class HEICViewerApp:
     def _on_zoom_changed(self, zoom: float) -> None:
         self.statusbar.update_zoom(zoom)
 
-    def _on_slider(self, val: str) -> None:
+    def _on_slider(self, val: float) -> None:
         if not self._current_image:
             return
         pct = float(val)
@@ -744,7 +755,7 @@ class HEICViewerApp:
     # Context menu
     # ------------------------------------------------------------------
 
-    def _show_context_menu(self, event: tk.Event) -> None:
+    def _show_context_menu(self, event) -> None:
         if not self._current_image:
             return
         try:

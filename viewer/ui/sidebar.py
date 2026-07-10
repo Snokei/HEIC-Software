@@ -1,19 +1,20 @@
 """
 viewer/ui/sidebar.py
 Right-side info/EXIF drawer panel.
+Now uses customtkinter.
 """
 
 from __future__ import annotations
 
 import datetime
 import os
-import tkinter as tk
+import customtkinter as ctk
 from typing import Callable, Optional
 
 from PIL import Image
 
 from ..exif_reader import ExifData
-from .widgets import RoundedButton, ToolTip, make_rounded_rect_image, make_rounded_segmented_image
+from .widgets import ToolTip, make_rounded_rect_image, make_rounded_segmented_image
 
 
 def _get_file_size_str(path: str) -> str:
@@ -28,7 +29,7 @@ def _get_file_size_str(path: str) -> str:
         return ""
 
 
-class SidebarPanel(tk.Frame):
+class SidebarPanel(ctk.CTkFrame):
     """
     Collapsible right-side drawer showing image metadata.
     """
@@ -37,14 +38,14 @@ class SidebarPanel(tk.Frame):
 
     def __init__(
         self,
-        parent: tk.Widget,
+        parent: ctk.CTkBaseClass,
         colors: dict,
         on_close: Optional[Callable] = None,
         on_copy_path: Optional[Callable[[str], None]] = None,
         on_open_folder: Optional[Callable[[str], None]] = None,
     ) -> None:
         bg = colors["panel"]
-        super().__init__(parent, bg=bg, width=self.WIDTH)
+        super().__init__(parent, fg_color=bg, width=self.WIDTH)
         self.pack_propagate(False)
         self.grid_propagate(False)
         self._colors = colors
@@ -52,23 +53,26 @@ class SidebarPanel(tk.Frame):
         self._on_open_folder = on_open_folder
 
         # Header
-        header = tk.Frame(self, bg=bg)
-        header.pack(fill=tk.X, padx=16, pady=(14, 8))
+        header = ctk.CTkFrame(self, fg_color=bg)
+        header.pack(fill=ctk.X, padx=16, pady=(14, 8))
 
-        tk.Label(
-            header, text="Info", bg=bg, fg="white",
+        ctk.CTkLabel(
+            header, text="Info", text_color="white",
             font=("Segoe UI Variable Display", 16, "bold"),
-        ).pack(side=tk.LEFT)
+        ).pack(side=ctk.LEFT)
 
-        RoundedButton(
-            header, text="✕", width=26, height=26, radius=5,
-            normal_color=bg, hover_color=colors["button_hover"],
-            fg="white", command=on_close,
-        ).pack(side=tk.RIGHT)
+        self._btn_close = ctk.CTkButton(
+            header, text="✕", width=26, height=26,
+            fg_color=bg, hover_color=colors["button_hover"],
+            text_color="white", command=on_close,
+            font=("Segoe UI Variable Display", 14),
+            corner_radius=5,
+        )
+        self._btn_close.pack(side=ctk.RIGHT)
 
         # Scrollable content
-        self._content = tk.Frame(self, bg=bg)
-        self._content.pack(fill=tk.BOTH, expand=True, padx=16, pady=4)
+        self._content = ctk.CTkFrame(self, fg_color=bg)
+        self._content.pack(fill=ctk.BOTH, expand=True, padx=16, pady=4)
 
         # Shared image references (keep alive)
         self._img_refs: list = []
@@ -90,9 +94,9 @@ class SidebarPanel(tk.Frame):
         self._img_refs.clear()
 
         if not image or not file_path:
-            tk.Label(
+            ctk.CTkLabel(
                 self._content, text="No photo loaded.",
-                bg=self._colors["panel"], fg="#888888",
+                text_color="#888888",
                 font=("Segoe UI Variable Display", 12),
             ).pack(pady=20)
             return
@@ -110,23 +114,23 @@ class SidebarPanel(tk.Frame):
             return img
 
         def row(build_fn):
-            r = tk.Frame(self._content, bg=bg)
-            r.pack(fill=tk.X, pady=6)
+            r = ctk.CTkFrame(self._content, fg_color=bg)
+            r.pack(fill=ctk.X, pady=6)
             build_fn(r)
 
         def section_label(parent, text):
-            tk.Label(
-                parent, text=text, bg=bg, fg="white",
+            ctk.CTkLabel(
+                parent, text=text, text_color="white",
                 font=("Segoe UI Variable Display", 12, "bold"),
                 anchor="w",
-            ).pack(fill=tk.X)
+            ).pack(fill=ctk.X)
 
         def info_label(parent, text):
-            tk.Label(
-                parent, text=text, bg=bg, fg="#888888",
+            ctk.CTkLabel(
+                parent, text=text, text_color="#888888",
                 font=("Segoe UI Variable Display", 12),
-                anchor="w", justify=tk.LEFT,
-            ).pack(fill=tk.X, pady=(2, 0))
+                anchor="w", justify="left",
+            ).pack(fill=ctk.X, pady=(2, 0))
 
         def segmented_box(parent, dividers=None):
             img = make_rounded_segmented_image(
@@ -134,8 +138,8 @@ class SidebarPanel(tk.Frame):
                 dividers or [], bg,
             )
             _ref(img)
-            lbl = tk.Label(parent, image=img, bg=bg, borderwidth=0, highlightthickness=0)
-            lbl.pack(fill=tk.X)
+            lbl = ctk.CTkLabel(parent, image=img, text="", fg_color=bg)
+            lbl.pack(fill=ctk.X)
             lbl.image = img
             return lbl
 
@@ -143,14 +147,13 @@ class SidebarPanel(tk.Frame):
         def _filename(parent):
             lbl_bg = segmented_box(parent)
             file_name = os.path.splitext(os.path.basename(file_path))[0]
-            e = tk.Entry(
-                lbl_bg, bg=box_bg, fg="white", relief="flat",
-                insertbackground="white",
-                font=("Segoe UI Variable Display", 12), justify=tk.CENTER,
+            e = ctk.CTkEntry(
+                lbl_bg, fg_color=box_bg, text_color="white",
+                font=("Segoe UI Variable Display", 12), justify="center",
             )
             e.insert(0, file_name)
+            e.configure(state="readonly")
             e.place(x=10, y=0, width=BOX_W - 20, height=BOX_H)
-            e.config(state="readonly", readonlybackground=box_bg)
         row(_filename)
 
         # --- Date / Time ---
@@ -170,23 +173,23 @@ class SidebarPanel(tk.Frame):
                     (dt.strftime("%B"), 47, 170),
                     (str(dt.year), 222, 75),
                 ]:
-                    tk.Label(lbl_bg, text=text, bg=box_bg, fg="white",
-                             font=("Segoe UI Variable Display", 10), anchor="center"
-                             ).place(x=x, y=2, width=w, height=BOX_H - 4)
+                    ctk.CTkLabel(lbl_bg, text=text, text_color="white",
+                                 font=("Segoe UI Variable Display", 10), anchor="center"
+                                 ).place(x=x, y=2, width=w, height=BOX_H - 4)
             row(_date)
 
             def _time(parent):
                 lbl_bg = segmented_box(parent, [0.5])
-                tk.Label(lbl_bg, text=str(dt.hour).zfill(2), bg=box_bg, fg="white",
-                         font=("Segoe UI Variable Display", 10), anchor="center"
-                         ).place(x=2, y=2, width=145, height=BOX_H - 4)
-                tk.Label(lbl_bg, text=dt.strftime("%M"), bg=box_bg, fg="white",
-                         font=("Segoe UI Variable Display", 10), anchor="center"
-                         ).place(x=152, y=2, width=145, height=BOX_H - 4)
+                ctk.CTkLabel(lbl_bg, text=str(dt.hour).zfill(2), text_color="white",
+                             font=("Segoe UI Variable Display", 10), anchor="center"
+                             ).place(x=2, y=2, width=145, height=BOX_H - 4)
+                ctk.CTkLabel(lbl_bg, text=dt.strftime("%M"), text_color="white",
+                             font=("Segoe UI Variable Display", 10), anchor="center"
+                             ).place(x=152, y=2, width=145, height=BOX_H - 4)
             row(_time)
 
         # Divider
-        tk.Frame(self._content, height=1, bg="#2a2a32").pack(fill=tk.X, pady=8)
+        ctk.CTkFrame(self._content, height=1, fg_color="#2a2a32").pack(fill=ctk.X, pady=8)
 
         # --- Size Info ---
         def _size(parent):
@@ -227,13 +230,13 @@ class SidebarPanel(tk.Frame):
         if exif and exif.gps_string:
             def _gps(parent):
                 section_label(parent, "Location")
-                gps_row = tk.Frame(parent, bg=bg)
-                gps_row.pack(fill=tk.X, pady=(2, 0))
-                tk.Label(
+                gps_row = ctk.CTkFrame(parent, fg_color=bg)
+                gps_row.pack(fill=ctk.X, pady=(2, 0))
+                ctk.CTkLabel(
                     gps_row, text=exif.gps_string,
-                    bg=bg, fg="#888888",
+                    text_color="#888888",
                     font=("Segoe UI Variable Display", 12), anchor="w",
-                ).pack(side=tk.LEFT, fill=tk.X, expand=True)
+                ).pack(side=ctk.LEFT, fill=ctk.X, expand=True)
                 if exif.altitude_m is not None:
                     info_label(parent, f"Altitude: {exif.altitude_m:.0f} m")
             row(_gps)
@@ -249,34 +252,36 @@ class SidebarPanel(tk.Frame):
         # --- File Path ---
         def _filepath(parent):
             section_label(parent, "File Path")
-            path_row = tk.Frame(parent, bg=bg)
-            path_row.pack(fill=tk.X, pady=(2, 0))
+            path_row = ctk.CTkFrame(parent, fg_color=bg)
+            path_row.pack(fill=ctk.X, pady=(2, 0))
 
-            tk.Label(
-                path_row, text=file_path, bg=bg, fg=self._colors.get("accent", "#f08060"),
+            ctk.CTkLabel(
+                path_row, text=file_path, text_color=self._colors.get("accent", "#f08060"),
                              font=("Segoe UI Variable Display", 12),
-                anchor="w", justify=tk.LEFT, wraplength=230,
-            ).pack(side=tk.LEFT, fill=tk.X, expand=True)
+                anchor="w", justify="left", wraplength=230,
+            ).pack(side=ctk.LEFT, fill=ctk.X, expand=True)
 
-            btn_frame = tk.Frame(path_row, bg=bg)
-            btn_frame.pack(side=tk.RIGHT)
+            btn_frame = ctk.CTkFrame(path_row, fg_color=bg)
+            btn_frame.pack(side=ctk.RIGHT)
 
-            copy_btn = RoundedButton(
-                btn_frame, text="⎘", width=24, height=24, radius=4,
-                normal_color=bg, hover_color=self._colors["button_hover"],
-                fg="white",
+            copy_btn = ctk.CTkButton(
+                btn_frame, text="⎘", width=24, height=24,
+                fg_color=bg, hover_color=self._colors["button_hover"],
+                text_color="white",
                 command=lambda: self._on_copy_path(file_path) if self._on_copy_path else None,
                 font=("Segoe UI Variable Display", 12),
+                corner_radius=4,
             )
             copy_btn.pack()
             ToolTip(copy_btn, "Copy path")
 
-            open_btn = RoundedButton(
-                btn_frame, text="📂", width=24, height=24, radius=4,
-                normal_color=bg, hover_color=self._colors["button_hover"],
-                fg="white",
+            open_btn = ctk.CTkButton(
+                btn_frame, text="📂", width=24, height=24,
+                fg_color=bg, hover_color=self._colors["button_hover"],
+                text_color="white",
                 command=lambda: self._on_open_folder(file_path) if self._on_open_folder else None,
                 font=("Segoe UI Variable Display", 12),
+                corner_radius=4,
             )
             open_btn.pack(pady=(4, 0))
             ToolTip(open_btn, "Open containing folder")
